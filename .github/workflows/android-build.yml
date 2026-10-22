@@ -12,17 +12,25 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Unzip project
+      - name: Accept Android licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+      - name: Prepare project
         run: |
+          ls -la
           unzip -o app.zip || true
           unzip -o gradle.zip || true
-          chmod +x gradlew
+          unzip -o aisnap/app.zip || true
+          unzip -o aisnap/gradle.zip || true
+          chmod +x gradlew || true
+          chmod +x aisnap/gradlew || true
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: |
+          if [ -f ./gradlew ]; then ./gradlew assembleDebug; else cd aisnap && ./gradlew assembleDebug; fi
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AI-SNAP-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            aisnap/app/build/outputs/apk/debug/app-debug.apk
+            **/app-debug.apk
