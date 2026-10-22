@@ -18,7 +18,12 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build APK
+          - name: Unzip project
+    run: |
+      unzip -o app.zip
+      unzip -o gradle.zip
+      chmod +x gradlew
+
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
