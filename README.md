@@ -1,18 +1,19 @@
-# AI SNAP — Android Camera Starter
+# DUMA SNAP
 
-Native Android project for package `com.aisnap.camera.pro`.
+DUMA SNAP is a native Android camera app built with CameraX.
 
-## Features in this starter
-- CameraX live camera preview (front/back camera switch)
-- Capture photos to `Pictures/AI Snap`
-- Background and outfit preset selector UI (12 choices each)
-- Dark, short-video-inspired camera UI
-- GitHub Actions workflow that compiles and uploads a debug APK
-
-## Important capability note
-This project is a camera starter, not a finished AI photo editor. The preset buttons currently select a preset and explain that an AI image-edit service must be configured. The Enhance button is also a placeholder. No OpenAI API key is embedded in the app; production AI editing should call a secure backend that stores the API key. This avoids exposing secret keys inside an APK.
+## Current camera features
+- Live rear/front camera preview
+- Photo capture and video recording
+- Flash modes (off/on/auto)
+- Camera zoom controls (device-supported range)
+- Highest available CameraX video quality selection
+- Clean DUMA-branded dark camera interface
 
 ## Build
-Requires JDK 17 and Android SDK platform 35. Run `./gradlew assembleDebug`. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`.
+Push to `main` or run **Build DUMA SNAP APK** manually in GitHub Actions. The workflow downloads the original DUMA Browser logo at build time, creates Android launcher icon sizes, builds the debug APK with JDK 17, and uploads the APK as `DUMA-SNAP-APK`.
 
-The included wrapper launcher downloads Gradle 8.9 into the standard Gradle user cache when first run. GitHub Actions is configured in `.github/workflows/android-build.yml`.
+Package: `com.duma.snap`
+
+## Quality note
+Actual photo/video quality, optical zoom, stabilization, HDR and maximum recording resolution depend on the phone's camera hardware and Android camera implementation. The app selects the highest video quality exposed by the device; it does not claim to reproduce another phone's physical camera hardware.
