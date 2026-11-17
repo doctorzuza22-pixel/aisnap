@@ -27,10 +27,13 @@ jobs:
           for density,size in sizes.items():
               im.resize((size,size),Image.Resampling.LANCZOS).save(f'app/src/main/res/mipmap-{density}/ic_launcher.png')
           PY
+      - name: Install Gradle 8.9
+        run: |
+          curl -L --fail https://services.gradle.org/distributions/gradle-8.9-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d "$HOME"
       - name: Build debug APK
         run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          "$HOME/gradle-8.9/bin/gradle" --no-daemon assembleDebug
       - name: Upload DUMA SNAP APK
         uses: actions/upload-artifact@v4
         with:
