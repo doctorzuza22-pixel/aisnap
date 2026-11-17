@@ -25,8 +25,6 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.MediaStoreOutputOptions
-import androidx.camera.video.OutputOptions
-import androidx.camera.video.withAudioEnabled
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -246,24 +244,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val outputOptions: OutputOptions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, "DUMA_SNAP_$stamp.mp4")
-                put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/DUMA SNAP")
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            MediaStoreOutputOptions.Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
-                .setContentValues(values).build()
-        } else {
-            val folder = getExternalFilesDir("Movies") ?: filesDir
-            FileOutputOptions.Builder(java.io.File(folder, "DUMA_SNAP_$stamp.mp4")).build()
-        }
-        var pending = capture.output.prepareRecording(this, outputOptions)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            pending = pending.withAudioEnabled()
-        }
-        recording = pending.start(ContextCompat.getMainExecutor(this)) { event ->
+        val listener: (VideoRecordEvent) -> Unit = { event ->
             when (event) {
                 is VideoRecordEvent.Start -> {
                     captureButton.text = "■"
@@ -273,11 +254,10 @@ class MainActivity : AppCompatActivity() {
                     recording = null
                     captureButton.text = "●"
                     if (!event.hasError()) {
-                        event.outputResults.outputUri.takeIf { it != android.net.Uri.EMPTY }?.let { uri ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
-                                contentResolver.update(uri, done, null, null)
-                            }
+                        val uri = event.outputResults.outputUri
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uri != android.net.Uri.EMPTY) {
+                            val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                            contentResolver.update(uri, done, null, null)
                         }
                         Toast.makeText(this, "Video saved to Movies / DUMA SNAP", Toast.LENGTH_LONG).show()
                     } else {
@@ -286,6 +266,24 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+        recording = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "DUMA_SNAP_$stamp.mp4")
+                put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/DUMA SNAP")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val options = MediaStoreOutputOptions.Builder(
+                contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            ).setContentValues(values).build()
+            capture.output.prepareRecording(this, options)
+                .start(ContextCompat.getMainExecutor(this), listener)
+        } else {
+            val folder = getExternalFilesDir("Movies") ?: filesDir
+            val options = FileOutputOptions.Builder(java.io.File(folder, "DUMA_SNAP_$stamp.mp4")).build()
+            capture.output.prepareRecording(this, options)
+                .start(ContextCompat.getMainExecutor(this), listener)
         }
     }
 
@@ -304,10 +302,7 @@ class MainActivity : AppCompatActivity() {
                     .build()
                 val recorder = Recorder.Builder()
                     .setQualitySelector(
-                        QualitySelector.fromOrderedList(
-                            listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
-                            QualitySelector.FALLBACK_STRATEGY_LOWER_QUALITY
-                        )
+                        QualitySelector.from(Quality.HD)
                     ).build()
                 videoCapture = VideoCapture.withOutput(recorder)
                 cameraProvider?.unbindAll()
