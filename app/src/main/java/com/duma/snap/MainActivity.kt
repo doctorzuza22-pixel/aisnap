@@ -8,7 +8,14 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
+import android.view.MotionEvent
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.camera.core.FocusMeteringAction
+import java.util.concurrent.TimeUnit
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -66,6 +73,11 @@ class MainActivity : AppCompatActivity() {
                 startCamera()
             }
         }
+        findViewById<Button>(R.id.proButton).setOnClickListener { showProControls() }
+        previewView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP) focusAt(event.x, event.y)
+            true
+        }
         findViewById<Button>(R.id.flashButton).setOnClickListener {
             flashMode = when (flashMode) {
                 ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
@@ -118,6 +130,67 @@ class MainActivity : AppCompatActivity() {
             if (cameraGranted) startCamera()
             else Toast.makeText(this, "Camera permission is required to use DUMA SNAP", Toast.LENGTH_LONG).show()
         }
+    }
+
+
+    private fun focusAt(x: Float, y: Float) {
+        val activeCamera = camera ?: return
+        val point = previewView.meteringPointFactory.createPoint(x, y)
+        val action = FocusMeteringAction.Builder(point)
+            .setAutoCancelDuration(3, TimeUnit.SECONDS)
+            .build()
+        activeCamera.cameraControl.startFocusAndMetering(action)
+    }
+
+    private fun showProControls() {
+        val activeCamera = camera
+        if (activeCamera == null) {
+            Toast.makeText(this, "Camera is not ready", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val range = activeCamera.cameraInfo.exposureState.exposureCompensationRange
+        if (range.lower == 0 && range.upper == 0) {
+            Toast.makeText(this, "Exposure adjustment is not supported by this camera", Toast.LENGTH_LONG).show()
+            return
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val valueLabel = TextView(this).apply { textSize = 16f }
+        val seek = SeekBar(this).apply {
+            max = (range.upper - range.lower).coerceAtLeast(1)
+            progress = (activeCamera.cameraInfo.exposureState.exposureCompensationIndex - range.lower).coerceIn(0, max)
+        }
+        fun applyExposure(index: Int) {
+            val safeIndex = index.coerceIn(range.lower, range.upper)
+            activeCamera.cameraControl.setExposureCompensationIndex(safeIndex)
+            valueLabel.text = "Exposure compensation: $safeIndex"
+        }
+        applyExposure(activeCamera.cameraInfo.exposureState.exposureCompensationIndex)
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                applyExposure(range.lower + progress)
+            }
+            override fun onStartTrackingTouch(bar: SeekBar?) {}
+            override fun onStopTrackingTouch(bar: SeekBar?) {}
+        })
+        content.addView(valueLabel)
+        content.addView(seek)
+        AlertDialog.Builder(this)
+            .setTitle("DUMA SNAP · PRO")
+            .setMessage("Adjust exposure. Tap anywhere on the preview to focus.")
+            .setView(content)
+            .setNeutralButton("LOW-LIGHT BOOST") { _, _ ->
+                val boost = 2.coerceIn(range.lower, range.upper)
+                activeCamera.cameraControl.setExposureCompensationIndex(boost)
+                Toast.makeText(this, "Exposure boost applied where supported", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("RESET") { _, _ ->
+                activeCamera.cameraControl.setExposureCompensationIndex(0.coerceIn(range.lower, range.upper))
+            }
+            .setPositiveButton("DONE", null)
+            .show()
     }
 
     private fun setZoom(requested: Float) {
