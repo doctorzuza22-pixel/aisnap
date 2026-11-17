@@ -25,6 +25,8 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.OutputOptions
+import androidx.camera.video.withAudioEnabled
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -244,7 +246,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val outputOptions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val outputOptions: OutputOptions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "DUMA_SNAP_$stamp.mp4")
                 put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
@@ -304,7 +306,7 @@ class MainActivity : AppCompatActivity() {
                     .setQualitySelector(
                         QualitySelector.fromOrderedList(
                             listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
-                            QualitySelector.FALLBACK_STRATEGY_LOWER
+                            QualitySelector.FALLBACK_STRATEGY_LOWER_QUALITY
                         )
                     ).build()
                 videoCapture = VideoCapture.withOutput(recorder)
