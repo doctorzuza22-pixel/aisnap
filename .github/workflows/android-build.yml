@@ -1,7 +1,10 @@
-name: Build AI SNAP APK
+name: Build DUMA SNAP APK
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,25 +15,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Accept Android licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-      - name: Prepare project
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Prepare original DUMA launcher icon
         run: |
-          ls -la
-          unzip -o app.zip || true
-          unzip -o gradle.zip || true
-          unzip -o aisnap/app.zip || true
-          unzip -o aisnap/gradle.zip || true
-          chmod +x gradlew || true
-          chmod +x aisnap/gradlew || true
-      - name: Build APK
+          python -m pip install --quiet Pillow
+          mkdir -p app/src/main/res/mipmap-mdpi app/src/main/res/mipmap-hdpi app/src/main/res/mipmap-xhdpi app/src/main/res/mipmap-xxhdpi app/src/main/res/mipmap-xxxhdpi
+          curl -L --fail "https://raw.githubusercontent.com/doctorzuza22-pixel/DUMA-Browser/main/app/src/main/assets/duma_logo.jpg" -o /tmp/duma_logo.jpg
+          python - <<'PY'
+          from PIL import Image
+          im=Image.open('/tmp/duma_logo.jpg').convert('RGB')
+          sizes={'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+          for density,size in sizes.items():
+              im.resize((size,size),Image.Resampling.LANCZOS).save(f'app/src/main/res/mipmap-{density}/ic_launcher.png')
+          PY
+      - name: Build debug APK
         run: |
-          if [ -f ./gradlew ]; then ./gradlew assembleDebug; else cd aisnap && ./gradlew assembleDebug; fi
-      - name: Upload APK
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Upload DUMA SNAP APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-SNAP-debug-apk
-          path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            aisnap/app/build/outputs/apk/debug/app-debug.apk
-            **/app-debug.apk
+          name: DUMA-SNAP-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
